@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Money Button | Multiple Transactions Sender</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
+</head>
+
+<body>
+  <div class="container">
+    <div class="row justify-content-md-center">
+      <div class="col-md-6 col-xs-12">
+        <h2 class="mt-3">Multiple Transactions Sender</h2>
+        <div class="alert alert-info my-5">
+          If you receive many small BSV amounts in your Money Button wallet,
+          it may happen that you'll have a problem if you try to send
+          a big payment since too many inputs would be needed.
+          <br />
+          <br />
+          Using this tool you can send multiple payments up to certain amount,
+          avoiding problems of too many inputs.
+        </div>
+        <form class="form">
+          <label class="form-label">Destination:</label>
+          <div class="input-group">
+            <input type='text' id='to' class="form-control" />
+          </div>
+          <div class="row my-3">
+            <div class="col-6">
+              <label class="form-label"> Total amount to send:</label>
+              <div class="input-group">
+                <input type='number' id='total' class="form-control" />
+                <span class="input-group-text">USD</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <label class="form-label"> In payments of:</label>
+              <div class="input-group">
+                <input type='number' id='chunkTotal' class="form-control" value="10" />
+                <span class="input-group-text">USD</span>
+              </div>
+            </div>
+          </div>
+        </form>
+        <button class="btn btn-primary btn-block" onclick="requestPermission()">Start</button>
+        <code id='console' class="mt-4"></code>
+      </div>
+    </div>
+  </div>
+  </div>
+  <script src="http://localhost:3000/moneybutton.js"></script>
+  <script>
+    var imb
+    var pending, total, to
+    var consoleEl = document.getElementById('console')
+
+    function log(text) {
+      const newEl = document.createElement('p');
+      newEl.innerHTML = `> ${text}`
+      consoleEl.appendChild(newEl)
+    }
+
+    function requestPermission() {
+      total = Number(document.getElementById('total').value)
+      to = document.getElementById('to').value
+
+      imb.askForPermission({
+        label: 'Total Amount to send',
+        amount: total, // Max amount to spend.
+        currency: 'USD', // Max amount to spend currency.
+      })
+    }
+
+    function processChunk(chunkTotal) {
+      log(`Making payment for ${chunkTotal} USD`)
+      imb.swipe(
+        {
+          outputs: [{
+            to,
+            amount: chunkTotal,
+            currency: 'USD'
+          }],
+        }
+      ).then(({ payment }) => {
+        if (payment) {
+          log(`txid: ${payment.txid}`)
+          pending -= chunkTotal
+          if (pending) {
+            processChunk(pending > chunkTotal ? chunkTotal : pending)
+          } else {
+            log(`Done sending ${total} USD`)
+          }
+        }
+      })
+    }
+
+    window.addEventListener('load', function () {
+      imb = new moneyButton.IMB({
+        clientIdentifier: '93143f770568b8dfbbb3217dd14aeb71',
+        onNewPermissionGranted: async (pm) => {
+          log(`Permission received. Starting payments.`)
+          chunkTotal = Number(document.getElementById('chunkTotal').value)
+          pending = total
+          processChunk(chunkTotal)
+        }
+      })
+    })
+  </script>
+</body>
